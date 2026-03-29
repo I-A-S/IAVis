@@ -1,0 +1,85 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28
+  },
+  "configurePresets": [
+    {
+      "name": "IAVis-x64-linux",
+      "displayName": "IAVis Linux x64 (Clang)",
+      "inherits": "x64-linux",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/libauxid/cmake/toolchains/x64-linux-clang.cmake"
+      }
+    },
+    {
+      "name": "IAVis-arm64-linux",
+      "displayName": "IAVis Linux ARM64 (Clang Cross)",
+      "inherits": "arm64-linux",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/libauxid/cmake/toolchains/arm64-linux-clang.cmake"
+      }
+    },
+    {
+      "name": "IAVis-x64-windows",
+      "displayName": "IAVis Windows x64 (Clang)",
+      "inherits": "x64-windows",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/libauxid/cmake/toolchains/x64-windows-clang.cmake"
+      }
+    },
+    {
+      "name": "IAVis-arm64-windows",
+      "displayName": "IAVis Windows ARM64 (Clang Cross)",
+      "inherits": "arm64-windows",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/libauxid/cmake/toolchains/arm64-windows-clang.cmake"
+      }
+    },
+    {
+      "name": "IAVis-x64-windows-cross",
+      "displayName": "IAVis Windows x64 (Clang Cross Linux Host)",
+      "inherits": "x64-windows-cross",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/libauxid/cmake/toolchains/x64-windows-cross-clang.cmake"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "IAVis-x64-linux",
+      "configurePreset": "IAVis-x64-linux"
+    },
+    {
+      "name": "IAVis-x64-windows",
+      "configurePreset": "IAVis-x64-windows"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "IAVis-x64-linux",
+      "configurePreset": "IAVis-x64-linux",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "IAVis-x64-windows",
+      "configurePreset": "IAVis-x64-windows",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ],
+  "include": [
+    "libauxid/CMakePresets.json"
+  ]
+}
