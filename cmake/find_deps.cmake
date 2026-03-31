@@ -17,27 +17,13 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-        glm
-        GIT_REPOSITORY https://github.com/g-truc/glm
-        GIT_TAG        master
-        OVERRIDE_FIND_PACKAGE
-)
-
-FetchContent_Declare(
-        STB_CMake
-        GIT_REPOSITORY https://github.com/I-A-S/stb-cmake
-        GIT_TAG        main
-        OVERRIDE_FIND_PACKAGE
-)
-
-FetchContent_Declare(
         DearImGui_CMake
         GIT_REPOSITORY https://github.com/I-A-S/imgui-cmake
         GIT_TAG        main
         OVERRIDE_FIND_PACKAGE
 )
 
-FetchContent_MakeAvailable(volk VulkanMemoryAllocator glm STB_CMake DearImGui_CMake)
+FetchContent_MakeAvailable(volk VulkanMemoryAllocator DearImGui_CMake)
 
 if(IAVis_BUILD_SANDBOX)
     FetchContent_Declare(
@@ -46,5 +32,20 @@ if(IAVis_BUILD_SANDBOX)
             GIT_TAG        main
             OVERRIDE_FIND_PACKAGE
     )
-    FetchContent_MakeAvailable(SDL)
+
+    FetchContent_Declare(
+            glm
+            GIT_REPOSITORY https://github.com/g-truc/glm
+            GIT_TAG        master
+            OVERRIDE_FIND_PACKAGE
+    )
+
+    FetchContent_Declare(
+            STB_CMake
+            GIT_REPOSITORY https://github.com/I-A-S/stb-cmake
+            GIT_TAG        main
+            OVERRIDE_FIND_PACKAGE
+    )
+
+    FetchContent_MakeAvailable(SDL glm STB_CMake)
 endif()

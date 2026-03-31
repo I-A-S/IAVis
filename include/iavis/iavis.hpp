@@ -39,23 +39,23 @@ namespace iavis
                        TexId roughness_tex = INVALID_ID, TexId ao_tex = INVALID_ID) -> Result<MatId>;
   auto destroy_material(MatId id) -> void;
 
-  auto cmd_set_camera_matrix(CmdBufferId cmd, const Mat4 &camera_matrix) -> void;
-  auto cmd_set_projection_matrix(CmdBufferId cmd, const Mat4 &projection_matrix) -> void;
+  auto cmd_set_camera_matrix(CmdBufferId cmd, const f32* camera_matrix) -> void;
+  auto cmd_set_projection_matrix(CmdBufferId cmd, const f32* projection_matrix) -> void;
   auto cmd_set_scissor(CmdBufferId cmd, u32 x, u32 y, u32 width, u32 height) -> void;
   auto cmd_set_viewport(CmdBufferId cmd, u32 x, u32 y, u32 width, u32 height) -> void;
   auto cmd_set_material(CmdBufferId cmd, MatId id) -> void;
-  auto cmd_draw_geometry(CmdBufferId cmd, GeomId id, const Mat4 &model_matrix) -> void;
+  auto cmd_draw_geometry(CmdBufferId cmd, GeomId id, const f32* model_matrix) -> void;
   // [IATODO] auto cmd_set_light_data() -> void;
 
-  auto begin_frame() -> void;
-  auto end_frame() -> void;
+  auto begin_frame() -> TexId;
+  auto end_frame() -> bool;
 
   auto begin_command_buffer() -> CmdBufferId;
   auto end_command_buffer(CmdBufferId id) -> void;
   auto submit_command_buffer(CmdBufferId id) -> void;
   auto submit_command_buffer_sync(CmdBufferId id) -> void;
 
-  auto set_clear_color(const Vec4 &color) -> void;
+  auto set_clear_color(f32 r, f32 g, f32 b) -> void;
 } // namespace iavis
 
 #if !defined(IAVIS_DONT_ALIAS_TO_VIS)

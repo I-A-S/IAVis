@@ -54,11 +54,13 @@
   "buildPresets": [
     {
       "name": "IAVis-x64-linux",
-      "configurePreset": "IAVis-x64-linux"
+      "configurePreset": "IAVis-x64-linux",
+      "configuration": "Debug"
     },
     {
       "name": "IAVis-x64-windows",
-      "configurePreset": "IAVis-x64-windows"
+      "configurePreset": "IAVis-x64-windows",
+      "configuration": "Debug"
     }
   ],
   "testPresets": [

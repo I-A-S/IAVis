@@ -15,34 +15,17 @@
 
 #pragma once
 
-#include <auxid/auxid.hpp>
+#include <iavis/iavis.hpp>
+#include <auxid/containers/vec.hpp>
+#include <auxid/containers/hash_map.hpp>
+
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
+#define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
+
+#include <volk.h>
+#include <vk_mem_alloc.h>
 
 namespace iavis
 {
-  using namespace au;
-
-  enum class EGeometryType : u32
-  {
-    UNLIT_2D,
-    UNLIT_3D,
-    LIT_2D,
-    LIT_3D,
-  };
-
-  struct InitInfo
-  {
-    bool is_debug{true};
-    i32 surface_width{};
-    i32 surface_height{};
-    const char *app_name{nullptr};
-    void* (*surface_creation_callback)(void* instance_handle, void* user_data){nullptr};
-    void* surface_creation_callback_user_data{nullptr};
-  };
-
-  using IdType = u64;
-  using TexId = IdType;
-  using MatId = IdType;
-  using GeomId = IdType;
-  using CmdBufferId = IdType;
-  static constexpr IdType INVALID_ID = 0;
+  static constexpr u32 NUM_FRAMES_BUFFERED = 3;
 }

@@ -1,4 +1,10 @@
-add_library(IAVis STATIC cpp/IAVis.cpp)
+add_library(IAVis STATIC
+        cpp/iavis.cpp
+
+        cpp/vulkan/device.cpp
+        cpp/vulkan/instance.cpp
+        cpp/vulkan/swapchain.cpp
+)
 
 target_include_directories(IAVis PUBLIC
     $<BUILD_INTERFACE:${IAVis_ROOT}/include>
@@ -8,7 +14,6 @@ target_include_directories(IAVis PRIVATE hpp)
 
 target_link_libraries(IAVis PUBLIC
         libauxid
-        glm::glm
 )
 
 target_link_libraries(IAVis PRIVATE
