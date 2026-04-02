@@ -20,7 +20,7 @@
 namespace iavis
 {
   auto initialize(const InitInfo &init_info) -> Result<void>;
-  auto terminate() -> void;
+  auto shutdown() -> void;
 
   auto get_surface_width() -> i32;
   auto get_surface_height() -> i32;
@@ -47,13 +47,13 @@ namespace iavis
   auto cmd_draw_geometry(CmdBufferId cmd, GeomId id, const f32* model_matrix) -> void;
   // [IATODO] auto cmd_set_light_data() -> void;
 
-  auto begin_frame() -> TexId;
-  auto end_frame() -> bool;
+  auto begin_frame() -> void;
+  auto end_frame() -> void;
 
-  auto begin_command_buffer() -> CmdBufferId;
-  auto end_command_buffer(CmdBufferId id) -> void;
-  auto submit_command_buffer(CmdBufferId id) -> void;
-  auto submit_command_buffer_sync(CmdBufferId id) -> void;
+  // [IATODO] auto begin_command_buffer() -> CmdBufferId;
+  // [IATODO] auto end_command_buffer(CmdBufferId id) -> void;
+  // [IATODO] auto submit_command_buffer(CmdBufferId id) -> void;
+  // [IATODO] auto submit_command_buffer_sync(CmdBufferId id) -> void;
 
   auto set_clear_color(f32 r, f32 g, f32 b) -> void;
 } // namespace iavis

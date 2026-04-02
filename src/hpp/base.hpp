@@ -19,12 +19,6 @@
 #include <auxid/containers/vec.hpp>
 #include <auxid/containers/hash_map.hpp>
 
-#define VMA_STATIC_VULKAN_FUNCTIONS 0
-#define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
-
-#include <volk.h>
-#include <vk_mem_alloc.h>
-
 namespace iavis
 {
   static constexpr u32 NUM_FRAMES_BUFFERED = 3;

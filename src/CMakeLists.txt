@@ -1,9 +1,10 @@
 add_library(IAVis STATIC
         cpp/iavis.cpp
 
-        cpp/vulkan/device.cpp
-        cpp/vulkan/instance.cpp
-        cpp/vulkan/swapchain.cpp
+        cpp/backends/vulkan/device.cpp
+        cpp/backends/vulkan/backend.cpp
+        cpp/backends/vulkan/instance.cpp
+        cpp/backends/vulkan/swapchain.cpp
 )
 
 target_include_directories(IAVis PUBLIC

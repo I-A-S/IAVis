@@ -13,215 +13,118 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#define VMA_IMPLEMENTATION
-
-#include <vulkan_impl.hpp>
-
-namespace iavis::vulkan
-{
-  GlobalContext g_context{};
-} // namespace iavis::vulkan
+#include <backends/vulkan/backend.hpp>
 
 namespace iavis
 {
+  IAVis_Backend_Vulkan vulkan_backend;
+
   auto initialize(const InitInfo &init_info) -> Result<void>
   {
-    vulkan::populate_extensions();
-
-    AU_TRY_DISCARD(vulkan::initialize_instance(init_info.app_name, init_info.is_debug));
-
-    vulkan::g_context.surface = static_cast<VkSurfaceKHR>(
-        init_info.surface_creation_callback(vulkan::g_context.instance, init_info.surface_creation_callback_user_data));
-    if (!vulkan::g_context.surface)
-      return fail("failed to create vulkan surface");
-
-    AU_TRY_DISCARD(vulkan::initialize_device());
-
-    AU_TRY_DISCARD(vulkan::initialize_swapchain(init_info.surface_width, init_info.surface_height));
-
-    return {};
+    return vulkan_backend.initialize(init_info);
   }
 
-  auto terminate() -> void
+  auto shutdown() -> void
   {
-    vkDeviceWaitIdle(vulkan::g_context.device);
-
-    for (INT32 i = 0; i < vulkan::g_context.swapchain_buffer_count; i++)
-    {
-      vkDestroyImageView(vulkan::g_context.device, vulkan::g_context.frames[i].swapchain_image_view, nullptr);
-      vkDestroySemaphore(vulkan::g_context.device, vulkan::g_context.frames[i].image_available_semaphore, nullptr);
-      vkDestroySemaphore(vulkan::g_context.device, vulkan::g_context.frames[i].render_finished_semaphore, nullptr);
-      vkDestroyFence(vulkan::g_context.device, vulkan::g_context.frames[i].in_use_fence, nullptr);
-      vkDestroyCommandPool(vulkan::g_context.device, vulkan::g_context.frames[i].command_pool, nullptr);
-    }
-
-    vkDestroySwapchainKHR(vulkan::g_context.device, vulkan::g_context.swapchain, nullptr);
-    vkDestroyFence(vulkan::g_context.device, vulkan::g_context.command_submit_fence, nullptr);
-
-    vkDestroyDebugUtilsMessengerEXT(vulkan::g_context.instance, vulkan::g_context.debug_messenger, nullptr);
-
-    vmaDestroyAllocator(vulkan::g_context.allocator);
-
-    vkDestroySurfaceKHR(vulkan::g_context.instance, vulkan::g_context.surface, nullptr);
-    vkDestroyDevice(vulkan::g_context.device, nullptr);
-    vkDestroyInstance(vulkan::g_context.instance, nullptr);
+    vulkan_backend.shutdown();
   }
 
   auto get_surface_width() -> i32
   {
-    return vulkan::g_context.swapchain_extent.width;
+    return vulkan_backend.get_surface_width();
   }
 
   auto get_surface_height() -> i32
   {
-    return vulkan::g_context.swapchain_extent.height;
+    return vulkan_backend.get_surface_height();
   }
 
   auto get_surface_handle() -> void *
   {
-    return vulkan::g_context.surface;
+    return vulkan_backend.get_surface_handle();
   }
 
-  auto begin_frame() -> TexId
+  auto create_geometry_unlit_2d(Span<const f32> positions, Span<const f32> tex_coords, Span<const u32> indices)
+      -> Result<GeomId>
   {
-    const auto img_view = vulkan::acquire_next_swapchain_image();
-    if (img_view == VK_NULL_HANDLE)
-      return INVALID_ID;
-
-
-
-    return reinterpret_cast<TexId>(img_view);
+    return vulkan_backend.create_geometry_unlit_2d(positions, tex_coords, indices);
   }
 
-  auto end_frame() -> bool
+  auto create_geometry_unlit_3d(Span<const f32> positions, Span<const f32> tex_coords, Span<const u32> indices)
+      -> Result<GeomId>
   {
+    return vulkan_backend.create_geometry_unlit_3d(positions, tex_coords, indices);
   }
 
-  auto begin_command_buffer() -> CmdBufferId
+  auto destroy_geometry(GeomId id) -> void
   {
+    vulkan_backend.destroy_geometry(id);
   }
 
-  auto end_command_buffer(CmdBufferId id) -> void
+  auto create_texture(const u8 *rgba_data, u32 width, u32 height, bool generate_mipmaps) -> Result<TexId>
   {
+    return vulkan_backend.create_texture(rgba_data, width, height, generate_mipmaps);
   }
 
-  auto submit_command_buffer(CmdBufferId id) -> void
+  auto destroy_texture(TexId id) -> void
   {
+    vulkan_backend.destroy_texture(id);
   }
 
-  auto submit_command_buffer_sync(CmdBufferId id) -> void
+  auto create_material(TexId albedo_tex, TexId normal_tex, TexId height_tex, TexId roughness_tex, TexId ao_tex)
+      -> Result<MatId>
   {
+    return vulkan_backend.create_material(albedo_tex, normal_tex, height_tex, roughness_tex, ao_tex);
+  }
+
+  auto destroy_material(MatId id) -> void
+  {
+    vulkan_backend.destroy_material(id);
+  }
+
+  auto cmd_set_camera_matrix(CmdBufferId cmd, const f32 *camera_matrix) -> void
+  {
+    vulkan_backend.cmd_set_camera_matrix(cmd, camera_matrix);
+  }
+
+  auto cmd_set_projection_matrix(CmdBufferId cmd, const f32 *projection_matrix) -> void
+  {
+    vulkan_backend.cmd_set_projection_matrix(cmd, projection_matrix);
+  }
+
+  auto cmd_set_scissor(CmdBufferId cmd, u32 x, u32 y, u32 width, u32 height) -> void
+  {
+    vulkan_backend.cmd_set_scissor(cmd, x, y, width, height);
+  }
+
+  auto cmd_set_viewport(CmdBufferId cmd, u32 x, u32 y, u32 width, u32 height) -> void
+  {
+    vulkan_backend.cmd_set_viewport(cmd, x, y, width, height);
+  }
+
+  auto cmd_set_material(CmdBufferId cmd, MatId id) -> void
+  {
+    vulkan_backend.cmd_set_material(cmd, id);
+  }
+
+  auto cmd_draw_geometry(CmdBufferId cmd, GeomId id, const f32 *model_matrix) -> void
+  {
+    vulkan_backend.cmd_draw_geometry(cmd, id, model_matrix);
+  }
+
+  auto begin_frame() -> void
+  {
+    vulkan_backend.begin_frame();
+  }
+
+  auto end_frame() -> void
+  {
+    vulkan_backend.end_frame();
   }
 
   auto set_clear_color(f32 r, f32 g, f32 b) -> void
   {
-    vulkan::g_context.clear_color[0] = r;
-    vulkan::g_context.clear_color[1] = g;
-    vulkan::g_context.clear_color[2] = b;
+    vulkan_backend.set_clear_color(r, g, b);
   }
 } // namespace iavis
 
-namespace iavis::vulkan
-{
-  auto populate_extensions() -> void
-  {
-    vulkan::g_context.instance_extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-
-#if AU_PLATFORM_WINDOWS
-    vulkan::g_context.instance_extensions.push_back("VK_KHR_win32_surface");
-#elif AU_PLATFORM_ANDROID
-    vulkan::g_context.instance_extensions.push_back("VK_KHR_android_surface");
-#elif AU_PLATFORM_LINUX
-    vulkan::g_context.instance_extensions.push_back("VK_KHR_xcb_surface");
-    vulkan::g_context.instance_extensions.push_back("VK_KHR_xlib_surface");
-#endif
-
-    vulkan::g_context.device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-  }
-
-  auto acquire_next_swapchain_image() -> VkImageView
-  {
-    g_context.current_sync_frame_index = (g_context.current_sync_frame_index + 1) % g_context.swapchain_buffer_count;
-
-    const auto &frame = g_context.frames[g_context.current_sync_frame_index];
-
-    vkWaitForFences(g_context.device, 1, &frame.in_use_fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(g_context.device, 1, &frame.in_use_fence);
-
-    u32 image_index{};
-    const auto result = vkAcquireNextImageKHR(g_context.device, g_context.swapchain, UINT64_MAX,
-                                              frame.image_available_semaphore, VK_NULL_HANDLE, &image_index);
-    if (result == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-      if (!recreate_swapchain())
-        return VK_NULL_HANDLE;
-      return acquire_next_swapchain_image();
-    }
-
-    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-      return VK_NULL_HANDLE;
-
-    g_context.current_frame_index = image_index;
-
-    return g_context.frames[g_context.current_frame_index].swapchain_image_view;
-  }
-
-  auto submit_command_buffer(VkCommandBuffer cmd_buffer) -> bool
-  {
-    vkEndCommandBuffer(cmd_buffer);
-
-    VkPipelineStageFlags wait_stage{VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT};
-    VkSubmitInfo submitInfo{
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount = 0,
-        .pWaitSemaphores = nullptr,
-        .pWaitDstStageMask = &wait_stage,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &cmd_buffer,
-        .signalSemaphoreCount = 0,
-        .pSignalSemaphores = nullptr,
-    };
-    if (vkResetFences(g_context.device, 1, &g_context.command_submit_fence) != VK_SUCCESS)
-      return false;
-    const auto success =
-        vkQueueSubmit(g_context.graphics_queue, 1, &submitInfo, g_context.command_submit_fence) == VK_SUCCESS;
-    return success;
-  }
-
-  auto submit_command_buffer_and_present(VkCommandBuffer cmd_buffer) -> bool
-  {
-    vkEndCommandBuffer(cmd_buffer);
-
-    VkPipelineStageFlags wait_stage{VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT};
-    VkSubmitInfo submitInfo{
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount = 0,
-        .pWaitSemaphores = nullptr,
-        .pWaitDstStageMask = &wait_stage,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &cmd_buffer,
-        .signalSemaphoreCount = 0,
-        .pSignalSemaphores = nullptr,
-    };
-    if (vkResetFences(g_context.device, 1, &g_context.command_submit_fence) != VK_SUCCESS)
-      return false;
-
-    if (vkQueueSubmit(g_context.graphics_queue, 1, &submitInfo, g_context.command_submit_fence) != VK_SUCCESS)
-      return false;
-
-    const auto &frame = g_context.frames[g_context.current_sync_frame_index];
-
-    VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.pImageIndices = &g_context.current_frame_index;
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &g_context.swapchain;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &frame.render_finished_semaphore;
-    vkQueuePresentKHR(g_context.graphics_queue, &presentInfo);
-
-    g_context.current_frame_index = (g_context.current_frame_index + 1) % g_context.swapchain_buffer_count;
-
-    return true;
-  }
-} // namespace iavis::vulkan

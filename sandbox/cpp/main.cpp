@@ -52,6 +52,8 @@ namespace iavis
 
     AU_TRY_DISCARD(iavis::initialize(init_info));
 
+    iavis::set_clear_color(100.0f/255.0f, 149.0f/255.0f, 237.0f/255.0f);
+
     SDL_ShowWindow(window);
 
     logger.info("successfully initialized the engine");
@@ -73,10 +75,12 @@ namespace iavis
       delta_time = current_frame - last_frame;
       last_frame = current_frame;
 
+      iavis::begin_frame();
 
+      iavis::end_frame();
     }
 
-    iavis::terminate();
+    iavis::shutdown();
 
     logger.info("cleanly exited the engine");
 
