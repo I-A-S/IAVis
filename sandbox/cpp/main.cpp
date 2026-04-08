@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <auxid/containers/vec.hpp>
+
 #include <iavis/iavis.hpp>
 
 #include <SDL3/SDL.h>
@@ -25,9 +27,10 @@ namespace iavis
     auto &logger = auxid::get_thread_logger();
 
     iavis::InitInfo init_info{
+        .app_name = "IAVis Sandbox",
+        .validation_enabled = true,
         .surface_width = 800,
         .surface_height = 600,
-        .app_name = "IAVis Sandbox",
         .surface_creation_callback = [](void *instance_handle, void *user_data) -> void * {
           VkSurfaceKHR surface;
           const auto window = static_cast<SDL_Window *>(user_data);
@@ -52,7 +55,18 @@ namespace iavis
 
     AU_TRY_DISCARD(iavis::initialize(init_info));
 
-    iavis::set_clear_color(100.0f/255.0f, 149.0f/255.0f, 237.0f/255.0f);
+    iavis::set_clear_color(100.0f / 255.0f, 149.0f / 255.0f, 237.0f / 255.0f);
+
+    Vec<VertexUnlit2DGeometry> vertices = {
+        {{-1.0f, -1.0f}, {0.0f, 0.0f}},
+        {{1.0f, -1.0f}, {1.0f, 0.0f}},
+        {{1.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-1.0f, 1.0f}, {0.0f, 1.0f}},
+    };
+
+    const auto quad_geom = AU_TRY(iavis::create_geometry_unlit_2d(vertices, {2, 1, 0, 3, 2, 0}));
+
+    const auto quad = iavis::add_drawable(quad_geom, 0, glm::vec3(0.0f, 0.0f, 0.0f));
 
     SDL_ShowWindow(window);
 
@@ -75,9 +89,7 @@ namespace iavis
       delta_time = current_frame - last_frame;
       last_frame = current_frame;
 
-      iavis::begin_frame();
-
-      iavis::end_frame();
+      iavis::render();
     }
 
     iavis::shutdown();

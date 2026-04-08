@@ -1,10 +1,5 @@
 add_library(IAVis STATIC
         cpp/iavis.cpp
-
-        cpp/backends/vulkan/device.cpp
-        cpp/backends/vulkan/backend.cpp
-        cpp/backends/vulkan/instance.cpp
-        cpp/backends/vulkan/swapchain.cpp
 )
 
 target_include_directories(IAVis PUBLIC
@@ -14,10 +9,7 @@ target_include_directories(IAVis PUBLIC
 target_include_directories(IAVis PRIVATE hpp)
 
 target_link_libraries(IAVis PUBLIC
-        libauxid
+        glm
+        IAGHI
 )
 
-target_link_libraries(IAVis PRIVATE
-        volk::volk
-        GPUOpen::VulkanMemoryAllocator
-)

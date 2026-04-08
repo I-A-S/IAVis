@@ -22,14 +22,23 @@ namespace iavis
   auto initialize(const InitInfo &init_info) -> Result<void>;
   auto shutdown() -> void;
 
-  auto get_surface_width() -> i32;
-  auto get_surface_height() -> i32;
-  auto get_surface_handle() -> void *;
+  auto resize(u32 width, u32 height) -> Result<void>;
+  auto get_surface_width() -> u32;
+  auto get_surface_height() -> u32;
 
-  auto create_geometry_unlit_2d(Span<const f32> positions, Span<const f32> tex_coords, Span<const u32> indices) -> Result<GeomId>;
-  auto create_geometry_unlit_3d(Span<const f32> positions, Span<const f32> tex_coords, Span<const u32> indices) -> Result<GeomId>;
-  // [IATODO] auto create_geometry_lit_2d(Span<const f32> positions, Span<const f32> tex_coords, Span<const f32> normals, Span<const f32> tangents, Span<const u32> indices) -> Result<GeomId>;
-  // [IATODO] auto create_geometry_lit_3d(Span<const f32> positions, Span<const f32> tex_coords, Span<const f32> normals, Span<const f32> tangents, Span<const u32> indices) -> Result<GeomId>;
+  auto set_camera(const Camera& camera) -> void;
+
+  auto set_clear_color(f32 r, f32 g, f32 b) -> void;
+  // [IATODO] auto set_light_data() -> void;
+
+  auto add_drawable(GeomId geometry, MatId material, glm::vec3 position, glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)) -> DrawableId;
+
+  auto render() -> void;
+
+  auto create_geometry_unlit_2d(Span<const VertexUnlit2DGeometry> vertices, Span<const u32> indices) -> Result<GeomId>;
+  auto create_geometry_unlit_3d(Span<const VertexUnlit3DGeometry> vertices, Span<const u32> indices) -> Result<GeomId>;
+  // [IATODO] auto create_geometry_lit_2d(Span<const VertexLit2DGeometry> vertices, Span<const u32> indices) -> Result<GeomId>;
+  // [IATODO] auto create_geometry_lit_3d(Span<const VertexLit3DGeometry> vertices, Span<const u32> indices) -> Result<GeomId>;
   auto destroy_geometry(GeomId id) -> void;
 
   auto create_texture(const u8 *rgba_data, u32 width, u32 height, bool generate_mipmaps = true) -> Result<TexId>;
@@ -38,24 +47,6 @@ namespace iavis
   auto create_material(TexId albedo_tex, TexId normal_tex = INVALID_ID, TexId height_tex = INVALID_ID,
                        TexId roughness_tex = INVALID_ID, TexId ao_tex = INVALID_ID) -> Result<MatId>;
   auto destroy_material(MatId id) -> void;
-
-  auto cmd_set_camera_matrix(CmdBufferId cmd, const f32* camera_matrix) -> void;
-  auto cmd_set_projection_matrix(CmdBufferId cmd, const f32* projection_matrix) -> void;
-  auto cmd_set_scissor(CmdBufferId cmd, u32 x, u32 y, u32 width, u32 height) -> void;
-  auto cmd_set_viewport(CmdBufferId cmd, u32 x, u32 y, u32 width, u32 height) -> void;
-  auto cmd_set_material(CmdBufferId cmd, MatId id) -> void;
-  auto cmd_draw_geometry(CmdBufferId cmd, GeomId id, const f32* model_matrix) -> void;
-  // [IATODO] auto cmd_set_light_data() -> void;
-
-  auto begin_frame() -> void;
-  auto end_frame() -> void;
-
-  // [IATODO] auto begin_command_buffer() -> CmdBufferId;
-  // [IATODO] auto end_command_buffer(CmdBufferId id) -> void;
-  // [IATODO] auto submit_command_buffer(CmdBufferId id) -> void;
-  // [IATODO] auto submit_command_buffer_sync(CmdBufferId id) -> void;
-
-  auto set_clear_color(f32 r, f32 g, f32 b) -> void;
 } // namespace iavis
 
 #if !defined(IAVIS_DONT_ALIAS_TO_VIS)

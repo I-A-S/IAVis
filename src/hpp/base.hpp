@@ -18,8 +18,52 @@
 #include <iavis/iavis.hpp>
 #include <auxid/containers/vec.hpp>
 #include <auxid/containers/hash_map.hpp>
+#include <glm/ext/matrix_transform.hpp>
 
 namespace iavis
 {
-  static constexpr u32 NUM_FRAMES_BUFFERED = 3;
+  struct InternalCamera: Camera
+  {
+    auto operator=(const Camera &camera) const noexcept -> void;
+
+    glm::mat4 view_matrix{};
+    glm::mat4 projection_matrix{};
+  };
+
+  struct Geometry
+  {
+    ghi::Buffer vertex_buffer{};
+    ghi::Buffer index_buffer{};
+    u32 index_count{};
+  };
+
+  struct Material
+  {
+
+  };
+
+  struct Drawable
+  {
+    bool active{true};
+    Geometry geometry{};
+    Material material{};
+    glm::mat4 transform{};
+  };
+
+  struct Context
+  {
+    ghi::Device device{};
+    u32 surface_width{};
+    u32 surface_height{};
+
+    InternalCamera camera{};
+
+    Vec<Drawable> drawables{};
+    Vec<Geometry> geometries{};
+    Vec<Material> materials{};
+    Vec<ghi::Image> textures{};
+
+    ghi::Pipeline unlit_2d_pipeline{};
+    ghi::Pipeline unlit_3d_pipeline{};
+  };
 }

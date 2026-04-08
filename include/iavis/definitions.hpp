@@ -15,7 +15,9 @@
 
 #pragma once
 
-#include <auxid/auxid.hpp>
+#include <iaghi/iaghi.hpp>
+
+#include <glm/glm.hpp>
 
 namespace iavis
 {
@@ -23,26 +25,45 @@ namespace iavis
 
   enum class EGeometryType : u32
   {
+    INVALID = 0,
+
     UNLIT_2D,
     UNLIT_3D,
     LIT_2D,
     LIT_3D,
   };
 
-  struct InitInfo
+  enum class EProjection : u32
   {
-    bool is_debug{true};
-    i32 surface_width{};
-    i32 surface_height{};
-    const char *app_name{nullptr};
-    void* (*surface_creation_callback)(void* instance_handle, void* user_data){nullptr};
-    void* surface_creation_callback_user_data{nullptr};
+    ORTHOGRAPHIC,
+    PERSPECTIVE,
   };
+
+  struct VertexUnlit2DGeometry
+  {
+    glm::vec2 position{};
+    glm::vec2 texcoords{};
+  };
+
+  struct VertexUnlit3DGeometry
+  {
+    glm::vec3 position{};
+    glm::vec2 texcoords{};
+  };
+
+  struct Camera
+  {
+    glm::vec4 viewport{};
+    glm::vec3 position{};
+    EProjection projection{EProjection::PERSPECTIVE};
+  };
+
+  using InitInfo = ghi::InitInfo;
 
   using IdType = u64;
   using TexId = IdType;
   using MatId = IdType;
   using GeomId = IdType;
-  using CmdBufferId = IdType;
-  static constexpr IdType INVALID_ID = 0;
-}
+  using DrawableId = IdType;
+  static constexpr IdType INVALID_ID = UINT64_MAX;
+} // namespace iavis

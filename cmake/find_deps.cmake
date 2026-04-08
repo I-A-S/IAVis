@@ -1,19 +1,17 @@
 include(FetchContent)
 
 FetchContent_Declare(
-        volk
-        GIT_REPOSITORY https://github.com/zeux/volk.git
-        GIT_TAG        master
-        SYSTEM
-        EXCLUDE_FROM_ALL
+        IAGHI
+        GIT_REPOSITORY https://github.com/I-A-S/IAGHI
+        GIT_TAG        main
+        OVERRIDE_FIND_PACKAGE
 )
 
 FetchContent_Declare(
-        VulkanMemoryAllocator
-        GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+        glm
+        GIT_REPOSITORY https://github.com/g-truc/glm
         GIT_TAG        master
-        SYSTEM
-        EXCLUDE_FROM_ALL
+        OVERRIDE_FIND_PACKAGE
 )
 
 FetchContent_Declare(
@@ -23,7 +21,7 @@ FetchContent_Declare(
         OVERRIDE_FIND_PACKAGE
 )
 
-FetchContent_MakeAvailable(volk VulkanMemoryAllocator DearImGui_CMake)
+FetchContent_MakeAvailable(IAGHI glm DearImGui_CMake)
 
 if(IAVis_BUILD_SANDBOX)
     FetchContent_Declare(
@@ -33,19 +31,5 @@ if(IAVis_BUILD_SANDBOX)
             OVERRIDE_FIND_PACKAGE
     )
 
-    FetchContent_Declare(
-            glm
-            GIT_REPOSITORY https://github.com/g-truc/glm
-            GIT_TAG        master
-            OVERRIDE_FIND_PACKAGE
-    )
-
-    FetchContent_Declare(
-            STB_CMake
-            GIT_REPOSITORY https://github.com/I-A-S/stb-cmake
-            GIT_TAG        main
-            OVERRIDE_FIND_PACKAGE
-    )
-
-    FetchContent_MakeAvailable(SDL glm STB_CMake)
+    FetchContent_MakeAvailable(SDL)
 endif()
