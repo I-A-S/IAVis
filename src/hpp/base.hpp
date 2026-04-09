@@ -18,7 +18,7 @@
 #include <iavis/iavis.hpp>
 #include <auxid/containers/vec.hpp>
 #include <auxid/containers/hash_map.hpp>
-#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace iavis
 {
@@ -69,7 +69,7 @@ private:
 
   struct InternalCamera : Camera
   {
-    auto operator=(const Camera &camera) const noexcept -> void;
+    auto operator=(const Camera &camera) noexcept -> void;
 
     glm::mat4 view_matrix{};
     glm::mat4 projection_matrix{};

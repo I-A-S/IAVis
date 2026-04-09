@@ -22,11 +22,20 @@ namespace iavis
 {
   Context g_context{};
 
-  auto InternalCamera::operator=(const Camera &camera) const noexcept -> void
+  auto InternalCamera::operator=(const Camera &camera) noexcept -> void
   {
+    projection_matrix =
+        camera.projection == EProjection::PERSPECTIVE
+            ? glm::perspective(glm::radians(camera.fov),
+                               static_cast<f32>(g_context.surface_width) / static_cast<f32>(g_context.surface_height),
+                               camera.near_plane, camera.far_plane)
+            : glm::ortho(0.0f, static_cast<f32>(g_context.surface_width), 0.0f, -static_cast<f32>(g_context.surface_height),
+                          camera.near_plane, camera.far_plane);
+    projection_matrix[1][1] *= -1.0f;
+    view_matrix = glm::lookAtLH(camera.position, camera.position + camera.forward, camera.up);
   }
 
-  auto intialize_pipelines() -> Result<void>;
+  auto initialize_pipelines() -> Result<void>;
 
   auto initialize(const InitInfo &init_info) -> Result<void>
   {
@@ -36,15 +45,10 @@ namespace iavis
 
     ghi::get_swapchain_extent(g_context.device, g_context.surface_width, g_context.surface_height);
 
-    AU_TRY_DISCARD(intialize_pipelines());
+    AU_TRY_DISCARD(initialize_pipelines());
 
-    g_context.ubo_unlit_per_scene.data().projection_matrix = glm::mat4(1.0f);
-    g_context.ubo_unlit_per_frame.data().view_matrix = glm::mat4(1.0f);
-    g_context.ubo_unlit_per_draw.data().model_matrix = glm::mat4(1.0f);
-
+    g_context.ubo_unlit_per_scene.data().projection_matrix = g_context.camera.projection_matrix;
     g_context.ubo_unlit_per_scene.flush();
-    g_context.ubo_unlit_per_frame.flush();
-    g_context.ubo_unlit_per_draw.flush();
 
     return {};
   }
@@ -90,6 +94,8 @@ namespace iavis
   auto set_camera(const Camera &camera) -> void
   {
     g_context.camera = camera;
+    g_context.ubo_unlit_per_scene.data().projection_matrix = g_context.camera.projection_matrix;
+    g_context.ubo_unlit_per_scene.flush();
   }
 
   auto set_clear_color(f32 r, f32 g, f32 b) -> void
@@ -120,6 +126,9 @@ namespace iavis
 
   auto render() -> void
   {
+    g_context.ubo_unlit_per_frame.data().view_matrix = g_context.camera.view_matrix;
+    g_context.ubo_unlit_per_frame.flush();
+
     const auto cmd = ghi::begin_frame(g_context.device);
 
     ghi::cmd_set_viewport(cmd, 0, 0, g_context.surface_width, g_context.surface_height);
@@ -131,6 +140,9 @@ namespace iavis
 
     for (const auto &drawable : g_context.drawables)
     {
+      g_context.ubo_unlit_per_draw.data().model_matrix = drawable.transform;
+      g_context.ubo_unlit_per_draw.flush();
+
       const u64 offset{0};
       ghi::cmd_bind_vertex_buffers(cmd, 0, 1, &drawable.geometry.vertex_buffer, &offset);
       ghi::cmd_bind_index_buffer(cmd, drawable.geometry.index_buffer, 0, true);
@@ -139,14 +151,6 @@ namespace iavis
 
     ghi::end_frame(g_context.device);
   }
-
-  /*
-  *  auto draw_geometry(GeomId id, const glm::mat4& model_matrix) -> void
-  {
-
-  }
-
-   */
 
   auto create_geometry_unlit_2d(Span<const VertexUnlit2DGeometry> vertices, Span<const u32> indices) -> Result<GeomId>
   {
@@ -246,11 +250,11 @@ void main()
 }
 )";
 
-  auto intialize_pipelines() -> Result<void>
+  auto initialize_pipelines() -> Result<void>
   {
     g_context.ubo_unlit_per_scene = AU_TRY(UniformBuffer<UBO_Unlit_Per_Scene>::create(g_context.device));
     g_context.ubo_unlit_per_frame = AU_TRY(UniformBuffer<UBO_Unlit_Per_Frame>::create(g_context.device));
-    g_context.ubo_unlit_per_draw  = AU_TRY(UniformBuffer<UBO_Unlit_Per_Draw>::create(g_context.device));
+    g_context.ubo_unlit_per_draw = AU_TRY(UniformBuffer<UBO_Unlit_Per_Draw>::create(g_context.device));
 
     const auto vertex_shader =
         AU_TRY(ghi::utils::create_shader_from_glsl(g_context.device, VERTEX_SHADER_SRC, ghi::EShaderStage::Vertex));

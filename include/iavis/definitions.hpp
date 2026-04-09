@@ -17,6 +17,7 @@
 
 #include <iaghi/iaghi.hpp>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
 namespace iavis
@@ -53,7 +54,11 @@ namespace iavis
 
   struct Camera
   {
-    glm::vec4 viewport{};
+    f32 fov{90.0f};
+    f32 near_plane{0.1f};
+    f32 far_plane{100.0f};
+    glm::vec3 up{0.0f, 1.0f, 0.0f};
+    glm::vec3 forward{0.0f, 0.0f, -1.0f};
     glm::vec3 position{};
     EProjection projection{EProjection::PERSPECTIVE};
   };

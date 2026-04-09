@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "glm/ext/matrix_clip_space.hpp"
+
 #include <auxid/containers/vec.hpp>
 
 #include <iavis/iavis.hpp>
@@ -57,6 +59,12 @@ namespace iavis
 
     iavis::set_clear_color(100.0f / 255.0f, 149.0f / 255.0f, 237.0f / 255.0f);
 
+    iavis::set_camera(Camera{
+      .forward = {0.0f, 0.0f, 1.0f},
+      .position = {0.0f, 0.0f, 10.0f},
+        .projection = EProjection::ORTHOGRAPHIC,
+    });
+
     Vec<VertexUnlit2DGeometry> vertices = {
         {{-1.0f, -1.0f}, {0.0f, 0.0f}},
         {{1.0f, -1.0f}, {1.0f, 0.0f}},
@@ -66,7 +74,8 @@ namespace iavis
 
     const auto quad_geom = AU_TRY(iavis::create_geometry_unlit_2d(vertices, {2, 1, 0, 3, 2, 0}));
 
-    const auto quad = iavis::add_drawable(quad_geom, 0, glm::vec3(0.0f, 0.0f, 0.0f));
+    const auto quad =
+        iavis::add_drawable(quad_geom, 0, glm::vec3(100.0f, 100.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
 
     SDL_ShowWindow(window);
 
