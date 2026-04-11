@@ -31,7 +31,12 @@ namespace iavis
   auto set_clear_color(f32 r, f32 g, f32 b) -> void;
   // [IATODO] auto set_light_data() -> void;
 
-  auto add_drawable(GeomId geometry, MatId material, glm::vec3 position, glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f)) -> DrawableId;
+  auto add_drawable(GeomId geometry, MatId material, glm::vec3 position, glm::quat rotation = glm::quat(), glm::vec3 scale = glm::vec3(1.0f), glm::vec2 tex_coords = glm::vec2(0.0f)) -> DrawableId;
+
+  auto set_drawable_position(DrawableId id, glm::vec3 position) -> void;
+  auto set_drawable_rotation(DrawableId id, glm::quat rotation) -> void;
+  auto set_drawable_scale(DrawableId id, glm::vec3 scale) -> void;
+  auto set_drawable_tex_coords(DrawableId id, glm::vec2 tex_coords) -> void;
 
   auto render() -> void;
 

@@ -48,7 +48,7 @@ namespace iavis
     AU_TRY_DISCARD(initialize_pipelines());
 
     g_context.ubo_unlit_per_scene.data().projection_matrix = g_context.camera.projection_matrix;
-    g_context.ubo_unlit_per_scene.flush();
+    AU_TRY_DISCARD(g_context.ubo_unlit_per_scene.flush());
 
     ghi::SamplerDesc sampler_desc{
         .linear_filter = true,
@@ -83,12 +83,14 @@ namespace iavis
 
     g_context.ubo_unlit_per_scene.destroy();
     g_context.ubo_unlit_per_frame.destroy();
-    g_context.ubo_unlit_per_draw.destroy();
+    g_context.ubo_unlit_per_draw_vs.destroy();
+    g_context.ubo_unlit_per_draw_fs.destroy();
 
     ghi::destroy_samplers(g_context.device, 1, &g_context.sampler_clamp);
     ghi::destroy_samplers(g_context.device, 1, &g_context.sampler_repeat);
 
     ghi::destroy_pipeline(g_context.device, g_context.unlit_2d_pipeline);
+    ghi::destroy_pipeline(g_context.device, g_context.unlit_3d_pipeline);
 
     ghi::destroy_binding_layout(g_context.device, g_context.unlit_pipeline_binding_layout);
     ghi::destroy_binding_layout(g_context.device, g_context.unlit_pipeline_material_binding_layout);
@@ -128,25 +130,53 @@ namespace iavis
     ghi::set_clear_color(r, g, b, 1.0f);
   }
 
-  auto add_drawable(GeomId geometry, MatId material, glm::vec3 position, glm::vec3 rotation, glm::vec3 scale)
-      -> DrawableId
+  auto add_drawable(GeomId geometry, MatId material, glm::vec3 position, glm::quat rotation, glm::vec3 scale,
+                    glm::vec2 tex_coords) -> DrawableId
   {
     if (geometry >= g_context.geometries.size())
       return INVALID_ID;
     if (material >= g_context.materials.size())
       return INVALID_ID;
-    const DrawableId id = g_context.drawables.size();
-    g_context.drawables.push_back(Drawable{
+    const auto geom = g_context.geometries[geometry];
+    auto &drawables = geom.is_3d ? g_context.unlit_3d_drawables[material] : g_context.unlit_2d_drawables[material];
+    const auto drawable = new Drawable{
         .active = true,
-        .geometry = g_context.geometries[geometry],
-        .material = g_context.materials[material],
-        .transform = glm::translate(glm::mat4(1.0f), position) *
-                     glm::rotate(glm::mat4(1.0f), rotation.z, glm::vec3(0.0f, 0.0f, 1.0f)) *
-                     glm::rotate(glm::mat4(1.0f), rotation.y, glm::vec3(0.0f, 1.0f, 0.0f)) *
-                     glm::rotate(glm::mat4(1.0f), rotation.x, glm::vec3(1.0f, 0.0f, 0.0f)) *
-                     glm::scale(glm::mat4(1.0f), scale),
-    });
-    return id;
+        .geometry = geom,
+        .tex_coords = tex_coords,
+        .position = position,
+        .rotation = rotation,
+        .scale = scale,
+        .is_transform_dirty = true,
+    };
+    drawables.push_back(drawable);
+    return reinterpret_cast<DrawableId>(drawable);
+  }
+
+  auto set_drawable_position(DrawableId id, glm::vec3 position) -> void
+  {
+    const auto drawable = reinterpret_cast<Drawable *>(id);
+    drawable->position = position;
+    drawable->is_transform_dirty = true;
+  }
+
+  auto set_drawable_rotation(DrawableId id, glm::quat rotation) -> void
+  {
+    const auto drawable = reinterpret_cast<Drawable *>(id);
+    drawable->rotation = rotation;
+    drawable->is_transform_dirty = true;
+  }
+
+  auto set_drawable_scale(DrawableId id, glm::vec3 scale) -> void
+  {
+    const auto drawable = reinterpret_cast<Drawable *>(id);
+    drawable->scale = scale;
+    drawable->is_transform_dirty = true;
+  }
+
+  auto set_drawable_tex_coords(DrawableId id, glm::vec2 tex_coords) -> void
+  {
+    const auto drawable = reinterpret_cast<Drawable *>(id);
+    drawable->tex_coords = tex_coords;
   }
 
   auto render() -> void
@@ -160,30 +190,67 @@ namespace iavis
     ghi::cmd_set_scissor(cmd, 0, 0, g_context.surface_width, g_context.surface_height);
 
     ghi::cmd_bind_pipeline(cmd, g_context.unlit_2d_pipeline);
-
     ghi::cmd_bind_descriptor_table(cmd, 0, g_context.unlit_2d_pipeline, g_context.unlit_pipeline_descriptor_table);
     ghi::cmd_bind_descriptor_table(cmd, 1, g_context.unlit_2d_pipeline,
                                    g_context.unlit_pipeline_material_descriptor_table);
-
-    for (const auto &drawable : g_context.drawables)
+    for (const auto [matId, drawables] : g_context.unlit_2d_drawables)
     {
-      g_context.ubo_unlit_per_draw.data().model_matrix = drawable.transform;
-      AU_UNUSED(g_context.ubo_unlit_per_draw.flush());
-
       ghi::DescriptorUpdate unlit_material_descriptor_updates = {
           .table = g_context.unlit_pipeline_material_descriptor_table,
           .binding = 0,
           .array_element = 0,
 
-          .image = drawable.material.albedo_texture,
+          .image = g_context.materials[matId].albedo_texture,
           .sampler = g_context.sampler_repeat,
       };
       ghi::update_descriptor_tables(g_context.device, 1, &unlit_material_descriptor_updates);
 
-      const u64 offset{0};
-      ghi::cmd_bind_vertex_buffers(cmd, 0, 1, &drawable.geometry.vertex_buffer, &offset);
-      ghi::cmd_bind_index_buffer(cmd, drawable.geometry.index_buffer, 0, true);
-      ghi::cmd_draw_indexed(cmd, drawable.geometry.index_count, 1, 0, 0, 0);
+      for (auto &drawable : drawables)
+      {
+        drawable->update_transform();
+        g_context.ubo_unlit_per_draw_vs.data().model_matrix = drawable->transform;
+        AU_UNUSED(g_context.ubo_unlit_per_draw_vs.flush());
+
+        g_context.ubo_unlit_per_draw_fs.data().tex_coords = drawable->tex_coords;
+        AU_UNUSED(g_context.ubo_unlit_per_draw_fs.flush());
+
+        const u64 offset{0};
+        ghi::cmd_bind_vertex_buffers(cmd, 0, 1, &drawable->geometry.vertex_buffer, &offset);
+        ghi::cmd_bind_index_buffer(cmd, drawable->geometry.index_buffer, 0, true);
+        ghi::cmd_draw_indexed(cmd, drawable->geometry.index_count, 1, 0, 0, 0);
+      }
+    }
+
+    ghi::cmd_bind_pipeline(cmd, g_context.unlit_3d_pipeline);
+    ghi::cmd_bind_descriptor_table(cmd, 0, g_context.unlit_3d_pipeline, g_context.unlit_pipeline_descriptor_table);
+    ghi::cmd_bind_descriptor_table(cmd, 1, g_context.unlit_3d_pipeline,
+                                   g_context.unlit_pipeline_material_descriptor_table);
+    for (const auto [matId, drawables] : g_context.unlit_3d_drawables)
+    {
+      ghi::DescriptorUpdate unlit_material_descriptor_updates = {
+          .table = g_context.unlit_pipeline_material_descriptor_table,
+          .binding = 0,
+          .array_element = 0,
+
+          .image = g_context.materials[matId].albedo_texture,
+          .sampler = g_context.sampler_repeat,
+      };
+      ghi::update_descriptor_tables(g_context.device, 1, &unlit_material_descriptor_updates);
+
+      for (auto &drawable : drawables)
+      {
+        drawable->update_transform();
+        g_context.ubo_unlit_per_draw_vs.data().model_matrix = drawable->transform;
+        AU_UNUSED(g_context.ubo_unlit_per_draw_vs.flush());
+
+        g_context.ubo_unlit_per_draw_fs.data().tex_coords = drawable->tex_coords;
+        AU_UNUSED(g_context.ubo_unlit_per_draw_fs.flush());
+
+        const u64 offset{0};
+        ghi::cmd_bind_vertex_buffers(cmd, 0, 1, &drawable->geometry.vertex_buffer, &offset);
+        ghi::cmd_bind_index_buffer(cmd, drawable->geometry.index_buffer, 0, true);
+        ghi::cmd_draw_indexed(cmd, drawable->geometry.index_count, 1, 0, 0, 0);
+      }
     }
 
     ghi::end_frame(g_context.device);
@@ -193,6 +260,8 @@ namespace iavis
   {
     GeomId id = g_context.geometries.size();
     g_context.geometries.push_back({
+        .is_3d = false,
+        .is_lit = false,
         .vertex_buffer = AU_TRY(ghi::utils::create_device_local_buffer(g_context.device, ghi::EBufferUsage::Vertex,
                                                                        vertices.size_bytes(), vertices.data(),
                                                                        vertices.size_bytes())),
@@ -207,6 +276,8 @@ namespace iavis
   {
     GeomId id = g_context.geometries.size();
     g_context.geometries.push_back({
+        .is_3d = true,
+        .is_lit = false,
         .vertex_buffer = AU_TRY(ghi::utils::create_device_local_buffer(g_context.device, ghi::EBufferUsage::Vertex,
                                                                        vertices.size_bytes(), vertices.data(),
                                                                        vertices.size_bytes())),
@@ -279,7 +350,8 @@ namespace iavis
 
 namespace iavis
 {
-  const auto VERTEX_SHADER_SRC = R"(
+  // [IATODO]: Precompile these
+  const auto UNLIT_2D_VERTEX_SHADER_SRC = R"(
 #version 460
 layout(location = 0) in vec2 inPosition;
 layout(location = 1) in vec2 inTexCoord;
@@ -305,17 +377,47 @@ void main()
 }
 )";
 
-  const auto FRAGMENT_SHADER_SRC = R"(
+  const auto UNLIT_3D_VERTEX_SHADER_SRC = R"(
+#version 460
+layout(location = 0) in vec3 inPosition;
+layout(location = 1) in vec2 inTexCoord;
+
+layout(location = 0) out vec2 vUV;
+
+layout(set = 0, binding = 0) uniform UBOPerScene_T {
+    mat4 projection;
+} PerSceneUBO;
+
+layout(set = 0, binding = 1) uniform UBOPerFrame_T {
+    mat4 view;
+} PerFrameUBO;
+
+layout(set = 0, binding = 2) uniform UBOPerDraw_T {
+    mat4 model;
+} PerDrawUBO;
+
+void main()
+{
+    gl_Position = PerSceneUBO.projection * PerFrameUBO.view * PerDrawUBO.model * vec4(inPosition, 1.0);
+    vUV = inTexCoord;
+}
+)";
+
+  const auto UNLIT_FRAGMENT_SHADER_SRC = R"(
 #version 460
 layout(location = 0) in vec2 vUV;
 
 layout(location = 0) out vec4 outColor;
 
+layout(set = 0, binding = 3) uniform UBOPerDrawFS_T {
+    vec2 tex_coords;
+} PerDrawFSUBO;
+
 layout(set = 1, binding = 0) uniform sampler2D tex;
 
 void main()
 {
-    outColor = texture(tex, vUV);
+    outColor = texture(tex, vUV + PerDrawFSUBO.tex_coords);
 }
 )";
 
@@ -323,34 +425,45 @@ void main()
   {
     g_context.ubo_unlit_per_scene = AU_TRY(UniformBuffer<UBO_Unlit_Per_Scene>::create(g_context.device));
     g_context.ubo_unlit_per_frame = AU_TRY(UniformBuffer<UBO_Unlit_Per_Frame>::create(g_context.device));
-    g_context.ubo_unlit_per_draw = AU_TRY(UniformBuffer<UBO_Unlit_Per_Draw>::create(g_context.device));
+    g_context.ubo_unlit_per_draw_vs = AU_TRY(UniformBuffer<UBO_Unlit_Per_Draw_VS>::create(g_context.device));
+    g_context.ubo_unlit_per_draw_fs = AU_TRY(UniformBuffer<UBO_Unlit_Per_Draw_FS>::create(g_context.device));
 
-    const auto vertex_shader =
-        AU_TRY(ghi::utils::create_shader_from_glsl(g_context.device, VERTEX_SHADER_SRC, ghi::EShaderStage::Vertex));
-    const auto fragment_shader =
-        AU_TRY(ghi::utils::create_shader_from_glsl(g_context.device, FRAGMENT_SHADER_SRC, ghi::EShaderStage::Fragment));
+    const auto unlit_2d_vertex_shader = AU_TRY(
+        ghi::utils::create_shader_from_glsl(g_context.device, UNLIT_2D_VERTEX_SHADER_SRC, ghi::EShaderStage::Vertex));
+    const auto unlit_3d_vertex_shader = AU_TRY(
+        ghi::utils::create_shader_from_glsl(g_context.device, UNLIT_3D_VERTEX_SHADER_SRC, ghi::EShaderStage::Vertex));
+    const auto unlit_fragment_shader = AU_TRY(
+        ghi::utils::create_shader_from_glsl(g_context.device, UNLIT_FRAGMENT_SHADER_SRC, ghi::EShaderStage::Fragment));
 
     auto color_format = ghi::get_swapchain_format(g_context.device);
 
     g_context.unlit_pipeline_binding_layout =
-        AU_TRY(ghi::create_binding_layout(g_context.device, {{
-                                                                 .binding = 0,
-                                                                 .count = 1,
-                                                                 .visibility = ghi::EShaderStage::Vertex,
-                                                                 .type = ghi::EDescriptorType::UniformBuffer,
-                                                             },
-                                                             {
-                                                                 .binding = 1,
-                                                                 .count = 1,
-                                                                 .visibility = ghi::EShaderStage::Vertex,
-                                                                 .type = ghi::EDescriptorType::UniformBuffer,
-                                                             },
-                                                             {
-                                                                 .binding = 2,
-                                                                 .count = 1,
-                                                                 .visibility = ghi::EShaderStage::Vertex,
-                                                                 .type = ghi::EDescriptorType::UniformBuffer,
-                                                             }}));
+        AU_TRY(ghi::create_binding_layout(g_context.device, {
+                                                                {
+                                                                    .binding = 0,
+                                                                    .count = 1,
+                                                                    .visibility = ghi::EShaderStage::Vertex,
+                                                                    .type = ghi::EDescriptorType::UniformBuffer,
+                                                                },
+                                                                {
+                                                                    .binding = 1,
+                                                                    .count = 1,
+                                                                    .visibility = ghi::EShaderStage::Vertex,
+                                                                    .type = ghi::EDescriptorType::UniformBuffer,
+                                                                },
+                                                                {
+                                                                    .binding = 2,
+                                                                    .count = 1,
+                                                                    .visibility = ghi::EShaderStage::Vertex,
+                                                                    .type = ghi::EDescriptorType::UniformBuffer,
+                                                                },
+                                                                {
+                                                                    .binding = 3,
+                                                                    .count = 1,
+                                                                    .visibility = ghi::EShaderStage::Fragment,
+                                                                    .type = ghi::EDescriptorType::UniformBuffer,
+                                                                },
+                                                            }));
     g_context.unlit_pipeline_material_binding_layout =
         AU_TRY(ghi::create_binding_layout(g_context.device, {
                                                                 {
@@ -361,20 +474,9 @@ void main()
                                                                 },
                                                             }));
 
-    ghi::VertexInputBinding vertex_input_binding{
-        .binding = 0,
-        .stride = sizeof(glm::vec4),
-        .input_rate = ghi::EInputRate::Vertex,
-    };
-
-    ghi::VertexInputAttribute vertex_input_attributes[2] = {
-        {.location = 0, .binding = 0, .format = ghi::EFormat::R32G32Float, .offset = 0},
-        {.location = 1, .binding = 0, .format = ghi::EFormat::R32G32Float, .offset = sizeof(glm::vec2)},
-    };
-
-    const ghi::GraphicsPipelineDesc unlit_2d_pipeline_desc{
-        .vertex_shader = vertex_shader,
-        .fragment_shader = fragment_shader,
+    ghi::GraphicsPipelineDesc unlit_pipeline_desc{
+        .vertex_shader = unlit_2d_vertex_shader,
+        .fragment_shader = unlit_fragment_shader,
 
         .color_formats = &color_format,
         .color_attachment_count = 1,
@@ -388,17 +490,36 @@ void main()
             },
         .vertex_bindings =
             {
-                vertex_input_binding,
+                ghi::VertexInputBinding{
+                    .binding = 0,
+                    .stride = sizeof(glm::vec4),
+                    .input_rate = ghi::EInputRate::Vertex,
+                },
             },
         .vertex_attributes =
             {
-                vertex_input_attributes,
+                {.location = 0, .binding = 0, .format = ghi::EFormat::R32G32Float, .offset = 0},
+                {.location = 1, .binding = 0, .format = ghi::EFormat::R32G32Float, .offset = sizeof(glm::vec2)},
             },
     };
-    g_context.unlit_2d_pipeline = AU_TRY(ghi::create_graphics_pipeline(g_context.device, &unlit_2d_pipeline_desc));
+    g_context.unlit_2d_pipeline = AU_TRY(ghi::create_graphics_pipeline(g_context.device, &unlit_pipeline_desc));
+    unlit_pipeline_desc.vertex_shader = unlit_3d_vertex_shader;
+    unlit_pipeline_desc.vertex_bindings = {
+        ghi::VertexInputBinding{
+            .binding = 0,
+            .stride = sizeof(glm::vec4) + sizeof(glm::vec2),
+            .input_rate = ghi::EInputRate::Vertex,
+        },
+    };
+    unlit_pipeline_desc.vertex_attributes = {
+        {.location = 0, .binding = 0, .format = ghi::EFormat::R32G32B32A32Float, .offset = 0},
+        {.location = 1, .binding = 0, .format = ghi::EFormat::R32G32Float, .offset = sizeof(glm::vec4)},
+    };
+    g_context.unlit_3d_pipeline = AU_TRY(ghi::create_graphics_pipeline(g_context.device, &unlit_pipeline_desc));
 
-    ghi::destroy_shader(g_context.device, vertex_shader);
-    ghi::destroy_shader(g_context.device, fragment_shader);
+    ghi::destroy_shader(g_context.device, unlit_2d_vertex_shader);
+    ghi::destroy_shader(g_context.device, unlit_3d_vertex_shader);
+    ghi::destroy_shader(g_context.device, unlit_fragment_shader);
 
     AU_TRY_DISCARD(ghi::create_descriptor_tables(g_context.device, g_context.unlit_pipeline_binding_layout, 1,
                                                  &g_context.unlit_pipeline_descriptor_table));
@@ -406,7 +527,7 @@ void main()
     AU_TRY_DISCARD(ghi::create_descriptor_tables(g_context.device, g_context.unlit_pipeline_material_binding_layout, 1,
                                                  &g_context.unlit_pipeline_material_descriptor_table));
 
-    ghi::DescriptorUpdate unlit_pipeline_descriptor_updates[3] = {
+    ghi::DescriptorUpdate unlit_pipeline_descriptor_updates[4] = {
         {
             .table = g_context.unlit_pipeline_descriptor_table,
             .binding = 0,
@@ -430,12 +551,21 @@ void main()
             .binding = 2,
             .array_element = 0,
 
-            .buffer = g_context.ubo_unlit_per_draw.get_handle(),
+            .buffer = g_context.ubo_unlit_per_draw_vs.get_handle(),
+            .buffer_offset = 0,
+            .buffer_range = 0,
+        },
+        {
+            .table = g_context.unlit_pipeline_descriptor_table,
+            .binding = 3,
+            .array_element = 0,
+
+            .buffer = g_context.ubo_unlit_per_draw_fs.get_handle(),
             .buffer_offset = 0,
             .buffer_range = 0,
         },
     };
-    ghi::update_descriptor_tables(g_context.device, 3, unlit_pipeline_descriptor_updates);
+    ghi::update_descriptor_tables(g_context.device, 4, unlit_pipeline_descriptor_updates);
 
     return {};
   }

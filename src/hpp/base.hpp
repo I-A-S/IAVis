@@ -75,6 +75,8 @@ private:
 
   struct Geometry
   {
+    bool is_3d{false};
+    bool is_lit{false};
     ghi::Buffer vertex_buffer{};
     ghi::Buffer index_buffer{};
     u32 index_count{};
@@ -93,8 +95,23 @@ private:
   {
     bool active{true};
     Geometry geometry{};
-    Material material{};
+
+    glm::vec2 tex_coords{};
+
+    glm::vec3 position{0.0f};
+    glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+    glm::vec3 scale{1.0f};
     glm::mat4 transform{};
+    bool is_transform_dirty{};
+
+    auto update_transform() -> void
+    {
+      if (!is_transform_dirty)
+        return;
+      transform =
+          glm::translate(glm::mat4(1.0f), position) * glm::mat4_cast(rotation) * glm::scale(glm::mat4(1.0f), scale);
+      is_transform_dirty = false;
+    }
   };
 
   struct UBO_Unlit_Per_Scene
@@ -107,9 +124,14 @@ private:
     glm::mat4 view_matrix{};
   };
 
-  struct UBO_Unlit_Per_Draw
+  struct UBO_Unlit_Per_Draw_VS
   {
     glm::mat4 model_matrix{};
+  };
+
+  struct UBO_Unlit_Per_Draw_FS
+  {
+    glm::vec2 tex_coords{};
   };
 
   struct Context
@@ -120,10 +142,12 @@ private:
 
     InternalCamera camera{};
 
-    Vec<Drawable> drawables{};
     Vec<Geometry> geometries{};
     Vec<Material> materials{};
     Vec<ghi::Image> textures{};
+
+    HashMap<MatId, Vec<Drawable *>> unlit_2d_drawables{};
+    HashMap<MatId, Vec<Drawable *>> unlit_3d_drawables{};
 
     ghi::Pipeline unlit_2d_pipeline{};
     ghi::Pipeline unlit_3d_pipeline{};
@@ -133,7 +157,8 @@ private:
 
     UniformBuffer<UBO_Unlit_Per_Scene> ubo_unlit_per_scene;
     UniformBuffer<UBO_Unlit_Per_Frame> ubo_unlit_per_frame;
-    UniformBuffer<UBO_Unlit_Per_Draw> ubo_unlit_per_draw;
+    UniformBuffer<UBO_Unlit_Per_Draw_VS> ubo_unlit_per_draw_vs;
+    UniformBuffer<UBO_Unlit_Per_Draw_FS> ubo_unlit_per_draw_fs;
 
     ghi::BindingLayout unlit_pipeline_binding_layout{};
     ghi::DescriptorTable unlit_pipeline_descriptor_table{};

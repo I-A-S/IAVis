@@ -19,6 +19,7 @@
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace iavis
 {
@@ -49,6 +50,7 @@ namespace iavis
   struct VertexUnlit3DGeometry
   {
     glm::vec3 position{};
+    float _padding;
     glm::vec2 texcoords{};
   };
 
