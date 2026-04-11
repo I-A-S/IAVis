@@ -44,11 +44,9 @@ public:
       ghi::destroy_buffers(m_device, 1, &m_buffer);
     }
 
-    auto flush() -> void
+    auto flush(bool update_all_frames = false) -> Result<void>
     {
-      const auto ptr = ghi::map_buffer(m_device, m_buffer);
-      memcpy(ptr, &m_data, sizeof(m_data));
-      ghi::unmap_buffer(m_device, m_buffer);
+      return ghi::upload_buffer_data(m_device, m_buffer, &m_data, sizeof(m_data), update_all_frames);
     }
 
     auto data() -> T &
@@ -84,6 +82,11 @@ private:
 
   struct Material
   {
+    ghi::Image albedo_texture{};
+    ghi::Image normal_texture{};
+    ghi::Image height_texture{};
+    ghi::Image roughness_texture{};
+    ghi::Image ao_texture{};
   };
 
   struct Drawable
@@ -125,11 +128,17 @@ private:
     ghi::Pipeline unlit_2d_pipeline{};
     ghi::Pipeline unlit_3d_pipeline{};
 
+    ghi::Sampler sampler_clamp{};
+    ghi::Sampler sampler_repeat{};
+
     UniformBuffer<UBO_Unlit_Per_Scene> ubo_unlit_per_scene;
     UniformBuffer<UBO_Unlit_Per_Frame> ubo_unlit_per_frame;
     UniformBuffer<UBO_Unlit_Per_Draw> ubo_unlit_per_draw;
 
     ghi::BindingLayout unlit_pipeline_binding_layout{};
     ghi::DescriptorTable unlit_pipeline_descriptor_table{};
+
+    ghi::BindingLayout unlit_pipeline_material_binding_layout{};
+    ghi::DescriptorTable unlit_pipeline_material_descriptor_table{};
   };
 } // namespace iavis

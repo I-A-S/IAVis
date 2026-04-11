@@ -74,8 +74,11 @@ namespace iavis
 
     const auto quad_geom = AU_TRY(iavis::create_geometry_unlit_2d(vertices, {2, 1, 0, 3, 2, 0}));
 
+    const auto texture = AU_TRY(iavis::create_texture_from_file("sandbox/res/negx.jpg"));
+    const auto material = AU_TRY(iavis::create_material(texture));
+
     const auto quad =
-        iavis::add_drawable(quad_geom, 0, glm::vec3(100.0f, 100.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
+        iavis::add_drawable(quad_geom, material, glm::vec3(100.0f, 100.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
 
     SDL_ShowWindow(window);
 

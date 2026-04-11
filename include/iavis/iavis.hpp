@@ -42,6 +42,7 @@ namespace iavis
   auto destroy_geometry(GeomId id) -> void;
 
   auto create_texture(const u8 *rgba_data, u32 width, u32 height, bool generate_mipmaps = true) -> Result<TexId>;
+  auto create_texture_from_file(const char* filename, bool generate_mipmaps = true) -> Result<TexId>;
   auto destroy_texture(TexId id) -> void;
 
   auto create_material(TexId albedo_tex, TexId normal_tex = INVALID_ID, TexId height_tex = INVALID_ID,
