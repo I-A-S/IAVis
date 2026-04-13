@@ -31,6 +31,11 @@ namespace iavis
   auto set_clear_color(f32 r, f32 g, f32 b) -> void;
   // [IATODO] auto set_light_data() -> void;
 
+  auto get_quad_geometry() -> GeomId;
+  auto get_cube_geometry() -> GeomId;
+  auto get_sphere_geometry() -> GeomId;
+  auto get_cylinder_geometry() -> GeomId;
+
   auto add_drawable(GeomId geometry, MatId material, glm::vec3 position, glm::quat rotation = glm::quat(), glm::vec3 scale = glm::vec3(1.0f), glm::vec2 tex_coords = glm::vec2(0.0f)) -> DrawableId;
 
   auto set_drawable_position(DrawableId id, glm::vec3 position) -> void;
@@ -53,6 +58,8 @@ namespace iavis
   auto create_material(TexId albedo_tex, TexId normal_tex = INVALID_ID, TexId height_tex = INVALID_ID,
                        TexId roughness_tex = INVALID_ID, TexId ao_tex = INVALID_ID) -> Result<MatId>;
   auto destroy_material(MatId id) -> void;
+
+  auto finalize_resources() -> Result<void>;
 } // namespace iavis
 
 #if !defined(IAVIS_DONT_ALIAS_TO_VIS)

@@ -22,49 +22,6 @@
 
 namespace iavis
 {
-  template<typename T> class UniformBuffer
-  {
-public:
-    static auto create(const ghi::Device &device) -> Result<UniformBuffer>
-    {
-      UniformBuffer result{};
-      result.m_data = {};
-      result.m_device = device;
-      ghi::BufferDesc buf_desc{
-          .size_bytes = sizeof(T),
-          .usage = ghi::EBufferUsage::Uniform,
-          .cpu_visible = true,
-      };
-      AU_TRY_DISCARD(ghi::create_buffers(device, 1, &buf_desc, &result.m_buffer));
-      return result;
-    }
-
-    auto destroy() -> void
-    {
-      ghi::destroy_buffers(m_device, 1, &m_buffer);
-    }
-
-    auto flush(bool update_all_frames = false) -> Result<void>
-    {
-      return ghi::upload_buffer_data(m_device, m_buffer, &m_data, sizeof(m_data), update_all_frames);
-    }
-
-    auto data() -> T &
-    {
-      return m_data;
-    }
-
-    [[nodiscard]] auto get_handle() const -> ghi::Buffer
-    {
-      return m_buffer;
-    }
-
-private:
-    T m_data{};
-    ghi::Buffer m_buffer{};
-    ghi::Device m_device{};
-  };
-
   struct InternalCamera : Camera
   {
     auto operator=(const Camera &camera) noexcept -> void;
@@ -91,6 +48,16 @@ private:
     ghi::Image ao_texture{};
   };
 
+  struct MaterialGPU {
+    u32 albedo_index;
+    u32 normal_index;
+    u32 height_index;
+    u32 roughness_index;
+    u32 ao_index;
+
+    u32 padding[3];
+  };
+
   struct Drawable
   {
     bool active{true};
@@ -114,7 +81,7 @@ private:
     }
   };
 
-  struct UBO_Unlit_Per_Scene
+  struct UBO_Unlit_Global
   {
     glm::mat4 projection_matrix{};
   };
@@ -124,14 +91,11 @@ private:
     glm::mat4 view_matrix{};
   };
 
-  struct UBO_Unlit_Per_Draw_VS
+  struct PC_Unlit_Per_Draw
   {
     glm::mat4 model_matrix{};
-  };
-
-  struct UBO_Unlit_Per_Draw_FS
-  {
     glm::vec2 tex_coords{};
+    u32 material_index{};
   };
 
   struct Context
@@ -155,15 +119,19 @@ private:
     ghi::Sampler sampler_clamp{};
     ghi::Sampler sampler_repeat{};
 
-    UniformBuffer<UBO_Unlit_Per_Scene> ubo_unlit_per_scene;
-    UniformBuffer<UBO_Unlit_Per_Frame> ubo_unlit_per_frame;
-    UniformBuffer<UBO_Unlit_Per_Draw_VS> ubo_unlit_per_draw_vs;
-    UniformBuffer<UBO_Unlit_Per_Draw_FS> ubo_unlit_per_draw_fs;
+    ghi::Buffer material_storage_buffer{};
 
-    ghi::BindingLayout unlit_pipeline_binding_layout{};
-    ghi::DescriptorTable unlit_pipeline_descriptor_table{};
+    ghi::Buffer ubo_unlit_global;
+    ghi::Buffer ubo_unlit_per_frame;
 
+    UBO_Unlit_Global ub_unlit_global;
+    UBO_Unlit_Per_Frame ub_unlit_per_frame;
+
+    ghi::BindingLayout unlit_pipeline_global_data_binding_layout{};
+    ghi::BindingLayout unlit_pipeline_per_frame_data_binding_layout{};
     ghi::BindingLayout unlit_pipeline_material_binding_layout{};
+    ghi::DescriptorTable unlit_pipeline_global_data_descriptor_table{};
+    ghi::DescriptorTable unlit_pipeline_per_frame_binding_descriptor_table{};
     ghi::DescriptorTable unlit_pipeline_material_descriptor_table{};
   };
 } // namespace iavis
