@@ -59,7 +59,7 @@ namespace iavis
                        TexId roughness_tex = INVALID_ID, TexId ao_tex = INVALID_ID) -> Result<MatId>;
   auto destroy_material(MatId id) -> void;
 
-  auto finalize_resources() -> Result<void>;
+  auto flush_new_resources() -> Result<void>;
 } // namespace iavis
 
 #if !defined(IAVIS_DONT_ALIAS_TO_VIS)

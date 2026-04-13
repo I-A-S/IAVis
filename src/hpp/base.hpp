@@ -39,16 +39,7 @@ namespace iavis
     u32 index_count{};
   };
 
-  struct Material
-  {
-    ghi::Image albedo_texture{};
-    ghi::Image normal_texture{};
-    ghi::Image height_texture{};
-    ghi::Image roughness_texture{};
-    ghi::Image ao_texture{};
-  };
-
-  struct MaterialGPU {
+  struct Material {
     u32 albedo_index;
     u32 normal_index;
     u32 height_index;
@@ -129,9 +120,10 @@ namespace iavis
 
     ghi::BindingLayout unlit_pipeline_global_data_binding_layout{};
     ghi::BindingLayout unlit_pipeline_per_frame_data_binding_layout{};
-    ghi::BindingLayout unlit_pipeline_material_binding_layout{};
     ghi::DescriptorTable unlit_pipeline_global_data_descriptor_table{};
     ghi::DescriptorTable unlit_pipeline_per_frame_binding_descriptor_table{};
-    ghi::DescriptorTable unlit_pipeline_material_descriptor_table{};
+
+    ghi::BindingLayout texture_data_binding_layout{};
+    ghi::DescriptorTable texture_data_descriptor_table{};
   };
 } // namespace iavis

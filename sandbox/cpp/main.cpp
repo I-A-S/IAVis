@@ -60,19 +60,24 @@ namespace iavis
     iavis::set_clear_color(100.0f / 255.0f, 149.0f / 255.0f, 237.0f / 255.0f);
 
     iavis::set_camera(Camera{
-      .forward = {0.0f, 0.0f, 1.0f},
-      .position = {0.0f, 0.0f, 10.0f},
+        .forward = {0.0f, 0.0f, 1.0f},
+        .position = {0.0f, 0.0f, 10.0f},
         .projection = EProjection::ORTHOGRAPHIC,
     });
 
     const auto texture = AU_TRY(iavis::create_texture_from_file("sandbox/res/negx.jpg"));
+    const auto texture2 = AU_TRY(iavis::create_texture_from_file("sandbox/res/negy.jpg"));
     const auto material = AU_TRY(iavis::create_material(texture));
+    const auto material2 = AU_TRY(iavis::create_material(texture2));
 
-    iavis::add_drawable(iavis::get_quad_geometry(), material, glm::vec3(100.0f, 100.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
-    iavis::add_drawable(iavis::get_quad_geometry(), material, glm::vec3(300.0f, 100.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
-    iavis::add_drawable(iavis::get_sphere_geometry(), material, glm::vec3(300.0f, 300.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
+    iavis::add_drawable(iavis::get_quad_geometry(), material2, glm::vec3(100.0f, 100.0f, 0.0f),
+                        glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
+    iavis::add_drawable(iavis::get_cube_geometry(), material, glm::vec3(300.0f, 100.0f, 0.0f),
+                        glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
+    iavis::add_drawable(iavis::get_sphere_geometry(), material, glm::vec3(300.0f, 300.0f, 0.0f),
+                        glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(50.0f));
 
-    AU_TRY_DISCARD(iavis::finalize_resources());
+    AU_TRY_DISCARD(iavis::flush_new_resources());
 
     SDL_ShowWindow(window);
 

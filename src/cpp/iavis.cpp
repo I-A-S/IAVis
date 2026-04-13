@@ -62,8 +62,8 @@ namespace iavis
       f32 z = radius * sin(sectorAngle);
       f32 u = (f32) i / sectorCount;
 
-      outVertices.push_back({{x, -halfHeight, z}, 0.0f, {u, 0.0f}});
-      outVertices.push_back({{x, halfHeight, z}, 0.0f, {u, 1.0f}});
+      outVertices.push_back({{x, -halfHeight, z}, 0.0f, {u, 1.0f}});
+      outVertices.push_back({{x, halfHeight, z}, 0.0f, {u, 0.0f}});
     }
 
     for (u32 i = 0; i < sectorCount; ++i)
@@ -109,7 +109,7 @@ namespace iavis
         f32 u = (f32) j / sectorCount;
         f32 v = (f32) i / stackCount;
 
-        outVertices.push_back({{x, y, z}, 0.0f, {u, v}});
+        outVertices.push_back({{x, y, z}, 0.0f, {u, 1.0 - v}});
       }
     }
 
@@ -173,16 +173,13 @@ namespace iavis
     AU_TRY_DISCARD(initialize_pipelines());
 
     g_context.ub_unlit_global.projection_matrix = g_context.camera.projection_matrix;
+    g_context.ub_unlit_global.projection_matrix[1][1] *= -1.0f;
     {
       const auto ptr = ghi::map_buffer(g_context.device, g_context.ubo_unlit_global);
       memcpy(ptr, &g_context.ub_unlit_global, sizeof(g_context.ub_unlit_global));
       ghi::unmap_buffer(g_context.device, g_context.ubo_unlit_global);
     }
 
-    ghi::SamplerDesc sampler_desc{
-        .linear_filter = true,
-        .repeat_uv = true,
-    };
     AU_TRY_DISCARD(ghi::create_samplers(g_context.device,
                                         {
                                             {
@@ -197,7 +194,7 @@ namespace iavis
                                         {&g_context.sampler_repeat, &g_context.sampler_clamp}));
 
     ghi::DescriptorUpdate unlit_material_descriptor_updates = {
-        .table = g_context.unlit_pipeline_material_descriptor_table,
+        .table = g_context.texture_data_descriptor_table,
         .binding = 0,
         .array_element = 0,
 
@@ -220,6 +217,8 @@ namespace iavis
       generate_cylinder(1.0f, 1.0f, 16, vertices, indices);
       g_cylinder_geometry_id = AU_TRY(create_geometry_unlit_3d(vertices, indices));
     }
+
+    g_context.materials.push_back(Material{0});
 
     return {};
   }
@@ -244,7 +243,7 @@ namespace iavis
 
     ghi::destroy_binding_layouts(g_context.device, {g_context.unlit_pipeline_global_data_binding_layout,
                                                     g_context.unlit_pipeline_per_frame_data_binding_layout,
-                                                    g_context.unlit_pipeline_material_binding_layout});
+                                                    g_context.texture_data_binding_layout});
 
     ghi::utils::shutdown(g_context.device);
 
@@ -371,8 +370,7 @@ namespace iavis
                                    g_context.unlit_pipeline_global_data_descriptor_table, {});
     ghi::cmd_bind_frame_bound_descriptor_table(cmd, 1, g_context.unlit_2d_pipeline,
                                                g_context.unlit_pipeline_per_frame_binding_descriptor_table);
-    ghi::cmd_bind_descriptor_table(cmd, 2, g_context.unlit_2d_pipeline,
-                                   g_context.unlit_pipeline_material_descriptor_table, {});
+    ghi::cmd_bind_descriptor_table(cmd, 2, g_context.unlit_2d_pipeline, g_context.texture_data_descriptor_table, {});
     for (const auto [matId, drawables] : g_context.unlit_2d_drawables)
     {
       for (auto &drawable : drawables)
@@ -382,7 +380,7 @@ namespace iavis
         const PC_Unlit_Per_Draw pc{
             .model_matrix = drawable->transform,
             .tex_coords = drawable->tex_coords,
-            .material_index = 0,
+            .material_index = (u32)matId,
         };
         ghi::cmd_push_constants(cmd, g_context.unlit_2d_pipeline, 0, sizeof(pc), &pc);
 
@@ -397,8 +395,7 @@ namespace iavis
                                    g_context.unlit_pipeline_global_data_descriptor_table, {});
     ghi::cmd_bind_frame_bound_descriptor_table(cmd, 1, g_context.unlit_3d_pipeline,
                                                g_context.unlit_pipeline_per_frame_binding_descriptor_table);
-    ghi::cmd_bind_descriptor_table(cmd, 2, g_context.unlit_3d_pipeline,
-                                   g_context.unlit_pipeline_material_descriptor_table, {});
+    ghi::cmd_bind_descriptor_table(cmd, 2, g_context.unlit_3d_pipeline, g_context.texture_data_descriptor_table, {});
     for (const auto [matId, drawables] : g_context.unlit_3d_drawables)
     {
       for (auto &drawable : drawables)
@@ -408,7 +405,7 @@ namespace iavis
         const PC_Unlit_Per_Draw pc{
             .model_matrix = drawable->transform,
             .tex_coords = drawable->tex_coords,
-            .material_index = 0,
+            .material_index = (u32)matId,
         };
         ghi::cmd_push_constants(cmd, g_context.unlit_3d_pipeline, 0, sizeof(pc), &pc);
 
@@ -490,16 +487,11 @@ namespace iavis
       -> Result<MatId>
   {
     g_context.materials.push_back(Material{
-        .albedo_texture = (albedo_tex <= g_context.textures.size() ? g_context.textures[albedo_tex]
-                                                                   : ghi::utils::get_default_image()),
-        .normal_texture = (normal_tex <= g_context.textures.size() ? g_context.textures[normal_tex]
-                                                                   : ghi::utils::get_default_image()),
-        .height_texture = (height_tex <= g_context.textures.size() ? g_context.textures[height_tex]
-                                                                   : ghi::utils::get_default_image()),
-        .roughness_texture = (roughness_tex <= g_context.textures.size() ? g_context.textures[roughness_tex]
-                                                                         : ghi::utils::get_default_image()),
-        .ao_texture =
-            (ao_tex <= g_context.textures.size() ? g_context.textures[ao_tex] : ghi::utils::get_default_image()),
+        .albedo_index = (u32)albedo_tex,
+        .normal_index = (u32)normal_tex,
+        .height_index = (u32)height_tex,
+        .roughness_index = (u32)roughness_tex,
+        .ao_index = (u32)ao_tex,
     });
     return g_context.materials.size() - 1;
   }
@@ -511,19 +503,28 @@ namespace iavis
     g_context.materials[id] = {};
   }
 
-  auto finalize_resources() -> Result<void>
+  auto flush_new_resources() -> Result<void>
   {
-    ghi::update_descriptor_tables(g_context.device,
-                                  {
-                                      {
-                                          .table = g_context.unlit_pipeline_material_descriptor_table,
-                                          .binding = 0,
-                                          .array_element = 1,
+    Vec<ghi::DescriptorUpdate> updates;
 
-                                          .image = g_context.textures[0],
-                                          .sampler = g_context.sampler_repeat,
-                                      },
-                                  });
+    for (u32 i = 0; i < g_context.textures.size(); i++)
+      updates.push_back({
+          .table = g_context.texture_data_descriptor_table,
+          .binding = 0,
+          .array_element = i,
+
+          .image = g_context.textures[i],
+          .sampler = g_context.sampler_repeat,
+      });
+
+    ghi::update_descriptor_tables(g_context.device, updates);
+
+    {
+      const auto ptr = ghi::map_buffer(g_context.device, g_context.material_storage_buffer);
+      memcpy(ptr, g_context.materials.data(), sizeof(g_context.materials[0]) * g_context.materials.size());
+      ghi::unmap_buffer(g_context.device, g_context.material_storage_buffer);
+    }
+
     return {};
   }
 } // namespace iavis
@@ -653,17 +654,6 @@ void main()
                                        }},
                                        {&g_context.material_storage_buffer}));
 
-    Vec<MaterialGPU> materials_data{
-        {.albedo_index = 1},
-        {.albedo_index = 0},
-        {.albedo_index = 0},
-    };
-    {
-      const auto ptr = ghi::map_buffer(g_context.device, g_context.material_storage_buffer);
-      memcpy(ptr, materials_data.data(), sizeof(materials_data[0]) * materials_data.size());
-      ghi::unmap_buffer(g_context.device, g_context.material_storage_buffer);
-    }
-
     const auto unlit_2d_vertex_shader = AU_TRY(
         ghi::utils::create_shader_from_glsl(g_context.device, UNLIT_2D_VERTEX_SHADER_SRC, ghi::EShaderStage::Vertex));
     const auto unlit_3d_vertex_shader = AU_TRY(
@@ -708,7 +698,7 @@ void main()
                                                },
                                                {&g_context.unlit_pipeline_global_data_binding_layout,
                                                 &g_context.unlit_pipeline_per_frame_data_binding_layout,
-                                                &g_context.unlit_pipeline_material_binding_layout}));
+                                                &g_context.texture_data_binding_layout}));
 
     ghi::GraphicsPipelineDesc unlit_pipeline_desc{
         .vertex_shader = unlit_2d_vertex_shader,
@@ -723,7 +713,7 @@ void main()
             {
                 g_context.unlit_pipeline_global_data_binding_layout,
                 g_context.unlit_pipeline_per_frame_data_binding_layout,
-                g_context.unlit_pipeline_material_binding_layout,
+                g_context.texture_data_binding_layout,
             },
         .vertex_bindings =
             {
@@ -769,9 +759,8 @@ void main()
     AU_TRY_DISCARD(ghi::create_descriptor_tables(g_context.device, false,
                                                  g_context.unlit_pipeline_global_data_binding_layout,
                                                  {&g_context.unlit_pipeline_global_data_descriptor_table}));
-    AU_TRY_DISCARD(ghi::create_descriptor_tables(g_context.device, false,
-                                                 g_context.unlit_pipeline_material_binding_layout,
-                                                 {&g_context.unlit_pipeline_material_descriptor_table}));
+    AU_TRY_DISCARD(ghi::create_descriptor_tables(g_context.device, false, g_context.texture_data_binding_layout,
+                                                 {&g_context.texture_data_descriptor_table}));
     AU_TRY_DISCARD(ghi::create_descriptor_tables(g_context.device, true,
                                                  g_context.unlit_pipeline_per_frame_data_binding_layout,
                                                  {&g_context.unlit_pipeline_per_frame_binding_descriptor_table}));
